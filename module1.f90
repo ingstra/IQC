@@ -113,47 +113,47 @@ contains
   end subroutine direct_detection
 
 
-  subroutine homodyne_detection(nruns,ntrajs,dt,rhozero,a,adagger,b,bdagger,gamma,filename,H,mflag,channels,omega_a)
+  subroutine power_output(nruns,ntrajs,dt,rhozero,a,adagger,filename,H,mflag,omega_a,omega_b,dim,n_c,kappa_b)
 
     use, intrinsic :: iso_fortran_env, only : stdout=>output_unit
-    integer, intent(in) :: nruns, ntrajs,channels
+    integer, intent(in) :: nruns, ntrajs,dim
     logical, intent(in) :: mflag ! if true, use milstein scheme
-    real(dp), intent(in) :: dt, gamma,omega_a
-    complex(dp), intent(in) :: rhozero(:,:), a(:,:),adagger(:,:), H(:,:), b(:,:),bdagger(:,:)
+    real(dp), intent(in) :: dt,omega_a,omega_b,n_c,kappa_b
+    complex(dp), intent(in) :: rhozero(:,:), a(:,:),adagger(:,:), H(:,:)
     character(len=*), intent(in) :: filename
     real(dp), allocatable :: store(:)
 
     integer :: k,j,seed
     real(dp) :: dW
-    complex(dp) :: rho(4,4)
+    complex(dp), dimension(dim**2,dim**2) :: rho,tmp
     character(len=*), parameter :: carriage_return =  char(13)
     allocate(store(nruns))
 
     store = 0
     open(unit=3, file='purity.dat', action="write")
-   !$OMP PARALLEL DO private(k,j) schedule(static)
+   ! $OMP PARALLEL DO private(k,j) schedule(static)
     do k=1,ntrajs
        rho = rhozero
        seed = k
        do j=1,nruns
           dW = r8_normal_01(seed)*sqrt(dt)
           write(3,'(E22.7,A1,E22.7)') j*dt, char(9), trace(matmul(rho,rho))
-          ! write(3, '(E22.7)') dW
-          ! this is not the current! This is the probability to be in the excited state
-          store(j) = store(j)+ trace(kronecker(identity_matrix(2),matmul(bdagger,b))*rho)
+
+          tmp=kronecker(identity_matrix(dim),matmul(adagger,a))
+          store(j) = store(j)+ omega_b*kappa_b*trace(matmul(tmp,rho))
           if (isnan(store(j))) then ! check if invalid value (NaN)
           print *, 'Got Nan. '
           call exit(1)
        end if ! end NaN
           if (mflag .eqv. .true.) then
-             rho = rho + delta_rho_milstein(rho,a,adagger,H,dt,dW,gamma,0._dp,channels)
+            ! rho = rho + delta_rho_milstein(rho,a,adagger,H,dt,dW,0._dp)
           else
-             rho = rho + delta_rho_homodyne(rho,H,a,adagger,b,bdagger,dt,dW)
+             rho = rho + delta_rho_homodyne(rho,H,a,adagger,dt,dW,n_c,kappa_b,dim)
           end if
        end do
        write(stdout,"(2a,i10,$)") carriage_return,"Calculating trajectory: ", k
     end do
-!$OMP END PARALLEL DO
+! $OMP END PARALLEL DO
 
     write(stdout,*) linefeed
     close(3)
@@ -165,18 +165,68 @@ print *, 'purity', trace(matmul(rho,rho))
     end do
     close(1)
 
-  end subroutine homodyne_detection
+  end subroutine power_output
 
 
-
-
-subroutine evolve_homodyne(nruns,ntrajs,dt,rhozero,a,adagger,b,bdagger,gamma,filename,H,mflag,channels,omega_a)
+ subroutine excited_probability(nruns,ntrajs,dt,rhozero,a,adagger,filename,H,mflag,omega_a,omega_b,dim,n_c,kappa_b)
 
     use, intrinsic :: iso_fortran_env, only : stdout=>output_unit
-    integer, intent(in) :: nruns, ntrajs,channels
+    integer, intent(in) :: nruns, ntrajs,dim
     logical, intent(in) :: mflag ! if true, use milstein scheme
-    real(dp), intent(in) :: dt, gamma,omega_a
-    complex(dp), intent(in) :: rhozero(:,:), a(:,:),adagger(:,:), H(:,:), b(:,:),bdagger(:,:)
+    real(dp), intent(in) :: dt,omega_a,omega_b,n_c,kappa_b
+    complex(dp), intent(in) :: rhozero(:,:), a(:,:),adagger(:,:), H(:,:)
+    character(len=*), intent(in) :: filename
+    real(dp), allocatable :: store(:)
+
+    integer :: k,j,seed
+    real(dp) :: dW
+    complex(dp), dimension(dim**2,dim**2) :: rho
+    character(len=*), parameter :: carriage_return =  char(13)
+    allocate(store(nruns))
+
+    store = 0
+    open(unit=3, file='purity.dat', action="write")
+   ! $OMP PARALLEL DO private(k,j) schedule(static)
+    do k=1,ntrajs
+       rho = rhozero
+       seed = k
+       do j=1,nruns
+          dW = r8_normal_01(seed)*sqrt(dt)
+          write(3,'(E22.7,A1,E22.7)') j*dt, char(9), trace(matmul(rho,rho))
+          store(j) = store(j)+ trace(kronecker(identity_matrix(dim),matmul(adagger,a))*rho)
+          if (isnan(store(j))) then ! check if invalid value (NaN)
+          print *, 'Got Nan. '
+          call exit(1)
+       end if ! end NaN
+          if (mflag .eqv. .true.) then
+            ! rho = rho + delta_rho_milstein(rho,a,adagger,H,dt,dW,0._dp)
+          else
+             rho = rho + delta_rho_homodyne(rho,H,a,adagger,dt,dW,n_c,kappa_b,dim)
+          end if
+       end do
+       write(stdout,"(2a,i10,$)") carriage_return,"Calculating trajectory: ", k
+    end do
+! $OMP END PARALLEL DO
+
+    write(stdout,*) linefeed
+    close(3)
+print *, 'purity', trace(matmul(rho,rho))
+
+    open(unit=1, file=filename, action="write")
+    do j=1,nruns
+       write(1,'(E22.7,A1,E22.7)') omega_a*j*dt, char(9), store(j)/ntrajs
+    end do
+    close(1)
+
+  end subroutine excited_probability
+
+subroutine evolve_homodyne(nruns,ntrajs,dt,rhozero,a,adagger,filename,H,mflag,omega_a,dim,n_c,kappa_b)
+
+    use, intrinsic :: iso_fortran_env, only : stdout=>output_unit
+    integer, intent(in) :: nruns, ntrajs,dim
+    logical, intent(in) :: mflag ! if true, use milstein scheme
+    real(dp), intent(in) :: dt,omega_a,n_c,kappa_b
+    complex(dp), intent(in) :: rhozero(:,:), a(:,:),adagger(:,:), H(:,:)
     character(len=*), intent(in) :: filename
     real(dp), allocatable :: store(:)
 
@@ -190,7 +240,7 @@ current=0
 
        dW = r8_normal_01(trueseed)*sqrt(dt)
 
-          value = value +  trace(kronecker(identity_matrix(2),matmul(bdagger,b))*rho)
+          value = value +  trace(kronecker(identity_matrix(dim),matmul(adagger,a))*rho)
 
 
        if (isnan(value)) then ! check if invalid value (NaN)
@@ -199,9 +249,9 @@ current=0
        end if ! end NaN
 
        if (mflag .eqv. .true.) then  ! if EM or Milstein
-          rho = rho + delta_rho_milstein(rho,c,cdagger,H,dt,dW,gamma,theta,channels)
+!          rho = rho + delta_rho_milstein(rho,c,cdagger,H,dt,dW)
        else
-          rho = rho + delta_rho_homodyne(rho,H,a,adagger,b,bdagger,,dt,dW,gamma,theta,channels)
+          rho = rho + delta_rho_homodyne(rho,H,a,adagger,dt,dW,n_c,kappa_b,dim)
        end if !  EM or Milstein
        t = t + dt
     end do ! nruns
@@ -224,9 +274,9 @@ current=0
   end associate
 end function
 
-  subroutine exact_solution(nruns, c, cdagger, dt ,filename,gamma, rhovec_zero, H)
+  subroutine exact_solution(nruns, c, cdagger, dt ,filename, rhovec_zero, H)
     integer, intent(in) :: nruns
-    real(dp), intent(in) :: dt,gamma
+    real(dp), intent(in) :: dt
     complex(dp), intent(in) :: rhovec_zero(:),c(:,:),cdagger(:,:),H(:,:)
     character(len=*), intent(in) :: filename
 
@@ -369,30 +419,29 @@ END SUBROUTINE
 
   end function delta_rho
 
-  function delta_rho_homodyne(rho,H,a,adagger,b,bdagger,dt,dW) result(y)
-    complex(dp), intent(in) :: rho(:,:), H(:,:), a(:,:),adagger(:,:),b(:,:),bdagger(:,:)
-    real(dp), intent(in) :: dt, dW
+  function delta_rho_homodyne(rho,H,a,adagger,dt,dW,n_c,kappa_b,dim) result(y)
+    complex(dp), intent(in) :: rho(:,:), H(:,:), a(:,:),adagger(:,:)
+    real(dp), intent(in) :: dt, dW, n_c,kappa_b
+    integer, intent(in) :: dim
     complex(dp), allocatable ::y(:,:)
 
 
-    complex(dp) :: i,id(2,2)
+    complex(dp) :: i,id(dim,dim)
     integer :: n
-    real(dp) :: const, kappa_a,kappa_b,n_h,n_c
-    kappa_a=2*2*pi
-    kappa_b=0.05*2*pi
-    n_c=0.01
-    n_h=0.125
+    real(dp) :: const, kappa_a,n_h
+    kappa_a=2*pi*2
+    n_h=0.2
 
     i = complex(0,1)
     n = size(rho,1)
     allocate(y(n,n))
 
-    id = identity_matrix(2)
+    id = identity_matrix(dim)
 
     y = -i*(matmul(H,rho)-matmul(rho,H))*dt + kappa_a*(n_h+1)*superD(kronecker(a,id),rho)*dt + &
          &kappa_a*n_h*superD(kronecker(adagger,id),rho)*dt + &
-         &kappa_b*(n_c+1)*superD(kronecker(id,b),rho)*dt + kappa_b*n_c*superD(kronecker(id,bdagger),rho)*dt + &
-         &sqrt(kappa_b)*superH(kronecker(id,b),rho)*dW
+         &kappa_b*(n_c+1)*superD(kronecker(id,a),rho)*dt + kappa_b*n_c*superD(kronecker(id,adagger),rho)*dt + &
+         &sqrt(kappa_b)*superH(kronecker(id,a),rho)*dW
 
     if (isnan(trace(y))) then
        call print_matrix(rho)
@@ -400,36 +449,28 @@ END SUBROUTINE
     end if
   end function delta_rho_homodyne
 
-  function delta_rho_milstein(rho,c,cdagger,H,dt,dW,gamma,theta,channels) result(y)
-    complex(dp), intent(in) :: rho(:,:), c(:,:), cdagger(:,:), H(:,:)
-    real(dp), intent(in) :: dt, dW, gamma,theta
-    integer, intent(in) :: channels
-    complex(dp), allocatable ::y(:,:)
-
-    real(dp) :: const
-    complex(dp) :: i
-
-    complex(dp), dimension(2,2) :: term1, term2
-    integer :: n
-    i = complex(0,1)
-    n = size(rho,1)
-    allocate(y(n,n))
-
-     if (channels == 1) then
-       const = gamma
-    else
-       const = 0.5_dp*gamma
-    end if
-
-
-    term1 = matmul(c,c)*rho + 2._dp*matmul(c,rho)*cdagger + matmul(rho,cdagger)*cdagger
-    term2 = matmul(c*exp(-i*theta),rho) + matmul(rho,cdagger*exp(i*theta))
-
-    y = -i*(matmul(H,rho)-matmul(rho,H))*dt + gamma*superD(c,rho)*dt + &
-& sqrt(const)*superH(c*exp(-i*theta),rho)*dW + 0.5_dp*(const*(term1-trace(term1)) + &
-& 2._dp*const*trace(term2)*(trace(term2)*rho-term2))*(dW**2._dp-dt)
-
-  end function delta_rho_milstein
+!!$  function delta_rho_milstein(rho,c,cdagger,H,dt,dW) result(y)
+!!$    complex(dp), intent(in) :: rho(:,:), c(:,:), cdagger(:,:), H(:,:)
+!!$    real(dp), intent(in) :: dt, dW
+!!$    complex(dp), allocatable ::y(:,:)
+!!$
+!!$    real(dp) :: const
+!!$    complex(dp) :: i
+!!$
+!!$    complex(dp), dimension(2,2) :: term1, term2
+!!$    integer :: n
+!!$    i = complex(0,1)
+!!$    n = size(rho,1)
+!!$    allocate(y(n,n))
+!!$
+!!$    term1 = matmul(c,c)*rho + 2._dp*matmul(c,rho)*cdagger + matmul(rho,cdagger)*cdagger
+!!$    term2 = matmul(c*exp(-i*theta),rho) + matmul(rho,cdagger*exp(i*theta))
+!!$
+!!$    y = -i*(matmul(H,rho)-matmul(rho,H))*dt + gamma*superD(c,rho)*dt + &
+!!$& sqrt(const)*superH(c*exp(-i*theta),rho)*dW + 0.5_dp*(const*(term1-trace(term1)) + &
+!!$& 2._dp*const*trace(term2)*(trace(term2)*rho-term2))*(dW**2._dp-dt)
+!!$
+!!$  end function delta_rho_milstein
 
   function liouvillian(c, H_eff) result(y)
     complex(dp), intent(in) :: H_eff(:,:), c(:,:)
