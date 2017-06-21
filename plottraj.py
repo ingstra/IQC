@@ -16,20 +16,21 @@ traj = np.loadtxt('traj.dat')
 
 
 nh=0.2
-wa = 2*pi*10e9
-wb = 2*pi*0.5e9
-ka=2*pi*2e9
-kb = 2*pi*0.05e9
-g=2*pi*0.5e9
+wa = 2*pi*10
+wb = 2*pi*0.5
+ka=2*pi*2
+kb = 2*pi*0.05
+g=2*pi*0.5
 
-dnasquared=nh*(nh+1)
-C=4*g**2/(ka*kb)
-Cprime = C/(1+4*(wb/(4*ka))**2)
-Pss= np.ones_like(traj[:,0])*kb*wb*Cprime*dnasquared/2
+#dnasquared=nh*(nh+1)
+#C=4*g**2/(ka*kb)
+#Cprime = C/(1+4*(wb/(4*ka))**2)
+#Pss= np.ones_like(traj[:,0])*kb*wb*Cprime*dnasquared/2
 
-print(Cprime)
-print(Pss[1])
-plt.plot(traj[:,0],Pss,'r--',linewidth=2)
+#print(Cprime)
+#print(Pss[1])
+#plt.plot(traj[:,0],Pss,'r--',linewidth=2)
+
 plt.plot(traj[:,0],traj[:,1],'k',linewidth=2)
 #plt.plot(exact[:,0],exact[:,1],'g--',linewidth=2)
 
@@ -37,7 +38,7 @@ plt.plot(traj[:,0],traj[:,1],'k',linewidth=2)
 #plt.plot(trace[:,0],trace[:,1])
 
 plt.xlabel(r'$\omega_a\,t$')
-plt.ylabel(r'$P$')
+plt.ylabel(r'$\langle n_b \rangle$')
 
 plt.tight_layout()
 #plt.savefig('testplot',figsize=(20,10))
