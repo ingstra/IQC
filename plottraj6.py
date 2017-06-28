@@ -10,7 +10,7 @@ from scipy.misc import factorial
 #import sys
 #trace = np.loadtxt('trace.dat')
 
-traj = np.loadtxt('traj.dat')
+traj = np.loadtxt('traj6.dat')
 #exact = np.loadtxt('exact.dat')
 #current = np.loadtxt('current.dat')
 
@@ -37,7 +37,7 @@ plt.plot(traj[:,0],traj[:,1],'k',linewidth=2)
 
 #plt.plot(trace[:,0],trace[:,1])
 
-plt.xlabel(r'ns')
+plt.xlabel(r'$\omega_a\,t$')
 plt.ylabel(r'$\langle n_b \rangle$')
 
 plt.tight_layout()
