@@ -31,14 +31,14 @@ g=2*pi*0.5
 #print(Pss[1])
 #plt.plot(traj[:,0],Pss,'r--',linewidth=2)
 
-plt.plot(traj[:,0],traj[:,1],'k',linewidth=2)
-#plt.plot(exact[:,0],exact[:,1],'g--',linewidth=2)
+plt.plot(traj[:,0],traj[:,1],'k',linewidth=2,label=r'$\langle n_a \rangle$')
+plt.plot(traj[:,0],traj[:,2],'r',linewidth=2,label=r'$\langle n_b \rangle$')
 
 
-#plt.plot(trace[:,0],trace[:,1])
+plt.legend()
 
 plt.xlabel(r'ns')
-plt.ylabel(r'$\langle n_b \rangle$')
+
 
 plt.tight_layout()
 #plt.savefig('testplot',figsize=(20,10))

@@ -7,17 +7,23 @@ from numpy import pi as pi
 from scipy.stats import norm
 from scipy.misc import factorial
 
+
+
+traj = np.loadtxt('traj.dat')
+
+plt.plot(traj[:,0],traj[:,2],'b',linewidth=2)
+plt.plot(traj[:,0],traj[:,1],'b',linewidth=2,label=r'quantum')
+
+
 langevin = np.loadtxt('langevin.dat')
 
-plt.plot(langevin[:,0],langevin[:,1],'k',linewidth=2,label='a')
-plt.plot(langevin[:,0],langevin[:,2],'r',linewidth=2,label='b')
+plt.plot(langevin[:,0],langevin[:,1],'--k',linewidth=2)
+plt.plot(langevin[:,0],langevin[:,2],'--k',linewidth=2,label='classical')
 
 plt.legend()
 
-#plt.plot(trace[:,0],trace[:,1])
-
 plt.xlabel(r'ns')
-#plt.ylabel(r'$\log(U_a/\omega_a)$')
+
 
 plt.tight_layout()
 #plt.savefig('testplot',figsize=(20,10))

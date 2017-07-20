@@ -178,25 +178,28 @@ contains
     real(dp), intent(in) :: dt,omega_a,omega_b,n_c,kappa_b,g
     complex(dp), intent(in) :: rhozero(:,:), a(:,:), adagger(:,:),b(:,:),bdagger(:,:),H(:,:)
     character(len=*), intent(in) :: filename
-    real(dp), allocatable :: store(:),store_tmp(:)
+    real(dp), allocatable :: store_a(:),store_b(:),store_tmp_a(:),store_tmp_b(:)
 
     integer :: k,j
-    real(dp) :: dW
+    real(dp) :: dWb, dWa
     complex(dp), dimension(dim_a*dim_b,dim_a*dim_b) :: rho
     character(len=*), parameter :: carriage_return =  char(13)
-    allocate(store_tmp(nruns),store(nruns))
+    allocate(store_tmp_a(nruns),store_tmp_b(nruns),store_a(nruns),store_b(nruns))
 
     store = 0
    ! call OMP_SET_NUM_THREADS(4)
    ! open(unit=3, file='purity.dat', action="write")
-    ! $OMP PARALLEL DO private(k,store_tmp) reduction(+:store) schedule(static)
+    ! $OMP PARALLEL DO private(k,store_tmp_a,store_tmp_b) reduction(+:store_a,store_b) schedule(static)
 
     do k=1,ntrajs
-    store_tmp=0
-       call evolve_homodyne(nruns,dt,rhozero,a,adagger,b,bdagger,H,mflag,omega_a,dim_a,dim_b,n_c,kappa_b,k,store_tmp,g)
+       store_tmp_a = 0
+       store_tmp_b = 0
+    call evolve_homodyne(nruns,dt,rhozero,a,adagger,b,bdagger,H,&
+         &mflag,omega_a,dim_a,dim_b,n_c,kappa_b,k,store_tmp_a,store_tmp_b,g)
        
        write(stdout,"(2a,i10,$)") carriage_return,"Calculating trajectory: ", k
-    store=store+store_tmp
+       store_a=store_a+store_tmp_a
+       store_b=store_b+store_tmp_b
     end do
     ! $OMP END PARALLEL DO 
 
@@ -204,28 +207,29 @@ contains
   !  close(3)
     open(unit=1, file=filename, action="write")
     do j=1,nruns
-       write(1,'(E22.7,A1,E22.7)') j*dt, char(9), store(j)/ntrajs
+       write(1,'(E22.7,A1,E22.7,A1,E22.7)') j*dt, char(9), store_a(j)/ntrajs, char(9), store_b(j)/ntrajs
     end do
     close(1)
 
   end subroutine excited_probability
 
-subroutine evolve_homodyne(nruns,dt,rhozero,a,adagger,b,bdagger,H,mflag,omega_a,dim_a,dim_b,n_c,kappa_b,seed,store,g)
+subroutine evolve_homodyne(nruns,dt,rhozero,a,adagger,b,bdagger,H,mflag,omega_a,dim_a,dim_b,n_c,kappa_b,seed,store_a,store_b,g)
 
     use, intrinsic :: iso_fortran_env, only : stdout=>output_unit
     integer, intent(in) :: nruns, dim_a,dim_b,seed
     logical, intent(in) :: mflag ! if true, use milstein scheme
     real(dp), intent(in) :: dt,omega_a,n_c,kappa_b,g
     complex(dp), intent(in) :: rhozero(:,:), a(:,:),adagger(:,:), b(:,:),bdagger(:,:),H(:,:)
-    real(dp), intent(out) :: store(:)
+    real(dp), intent(out) :: store_a(:),store_b(:)
     !real(dp), allocatable :: store(:)
 
-     real(dp) :: y,dW,t,const, heating_time,omega_eff,U,omega_mod
+    real(dp) :: y,dWb,dWa,t,const, heating_time,omega_eff,U,omega_mod
     complex(dp), dimension(dim_a*dim_b,dim_a*dim_b) :: rho
     complex(dp) ::  i
-    integer :: trueseed,j,nr_timesteps_heating
+    integer :: trueseed_a, trueseed_b,j,nr_timesteps_heating
     logical :: heating
-    trueseed=seed
+    trueseed_b=seed
+    trueseed_a=seed+98765
     store=0
 
     ! omega_mod is for one full cycle!
@@ -246,23 +250,23 @@ subroutine evolve_homodyne(nruns,dt,rhozero,a,adagger,b,bdagger,H,mflag,omega_a,
              heating = .false.
           endif
        endif
-       
-       dW = r8_normal_01(trueseed)*sqrt(dt)
-       store(j) = store(j) +  trace(kronecker(identity_matrix(dim_a),matmul(bdagger,b))*rho) ! b
-       !store(j) = store(j) +  trace(kronecker(matmul(adagger,a),identity_matrix(dim_b))*rho) ! a
 
-       if (isnan(store(j))) then ! check if invalid value (NaN)
+        write(stdout,"(2a,i10,1a,i10,$)") char(13),"Run number ", j, " out of ", nruns
+       
+        dWb = r8_normal_01(trueseed_b)*sqrt(dt)
+        dWa = r8_normal_01(trueseed_a)*sqrt(dt)
+       store_b(j) = store_b(j) +  trace(kronecker(identity_matrix(dim_a),matmul(bdagger,b))*rho) ! b
+       store_a(j) = store_a(j) +  trace(kronecker(matmul(adagger,a),identity_matrix(dim_b))*rho) ! a
+       
+
+       if (isnan(store_b(j))) then ! check if invalid value (NaN)
           print *, 'Got NaN in evolve_homodyne. '
           call exit(1)
        end if ! end NaN
-
-       if (mflag .eqv. .true.) then  ! if EM or Milstein
-!          rho = rho + delta_rho_milstein(rho,c,cdagger,H,dt,dW)
-       else
-          rho = rho + delta_rho_homodyne(rho,H,a,adagger,b,bdagger,dt,dW,n_c,kappa_b,dim_a,dim_b,heating)
-       end if !  EM or Milstein
-       t = t + dt
-  
+       
+          rho = rho + delta_rho_homodyne(rho,H,a,adagger,b,bdagger,dt,dWb,dWa,n_c,kappa_b,dim_a,dim_b,heating)
+       
+         
     !! *************************************************
    
        if (j .ge. nruns - 2*nr_timesteps_heating) then
@@ -271,7 +275,7 @@ subroutine evolve_homodyne(nruns,dt,rhozero,a,adagger,b,bdagger,H,mflag,omega_a,
         write(5,'(E22.7,A1,E22.7)') omega_eff/omega_a, char(9), U/omega_a
      endif
   end do ! nruns
-  
+  print *,
     close(5)
     
     if (seed .eq. 1) then       
@@ -280,9 +284,9 @@ subroutine evolve_homodyne(nruns,dt,rhozero,a,adagger,b,bdagger,H,mflag,omega_a,
    
   end subroutine evolve_homodyne
 
-function delta_rho_homodyne(rho,H,a,adagger,b,bdagger,dt,dW,n_c,kappa_b,dim_a,dim_b,heating) result(y)
+function delta_rho_homodyne(rho,H,a,adagger,b,bdagger,dt,dWb,dWa,n_c,kappa_b,dim_a,dim_b,heating) result(y)
     complex(dp), intent(in) :: rho(:,:), H(:,:), a(:,:),adagger(:,:),b(:,:),bdagger(:,:)
-    real(dp), intent(in) :: dt, dW, n_c,kappa_b
+    real(dp), intent(in) :: dt, dWb, dWa, n_c,kappa_b
     integer, intent(in) :: dim_a, dim_b
     logical, intent(in) :: heating
     complex(dp), allocatable ::y(:,:)
@@ -292,7 +296,7 @@ function delta_rho_homodyne(rho,H,a,adagger,b,bdagger,dt,dW,n_c,kappa_b,dim_a,di
     integer :: n
     real(dp) :: const, kappa_a, kappa_h, n_h
     kappa_a=2*pi*2
-    n_h=0.325
+    n_h=0.125
     kappa_h = kappa_a
 
     i = complex(0,1)
@@ -304,11 +308,17 @@ function delta_rho_homodyne(rho,H,a,adagger,b,bdagger,dt,dW,n_c,kappa_b,dim_a,di
 
     y = -i*(matmul(H,rho)-matmul(rho,H))*dt + &
          &kappa_a*(n_c+1)*superD(kronecker(a,id_b),rho)*dt + kappa_a*n_c*superD(kronecker(adagger,id_b),rho)*dt + &
-         &kappa_b*(n_c+1)*superD(kronecker(id_a,b),rho)*dt + kappa_b*n_c*superD(kronecker(id_a,bdagger),rho)*dt! + &
-         !&sqrt(kappa_b)*superH(kronecker(id_a,b),rho)*dW
+         &kappa_b*(n_c+1)*superD(kronecker(id_a,b),rho)*dt + kappa_b*n_c*superD(kronecker(id_a,bdagger),rho)*dt + &
+         ! 
+         & kappa_h*superD(kronecker(a,id_b),rho)*dt + &
+         ! stochastic term
+         &sqrt(kappa_b)*superH(kronecker(id_a,b),rho)*dWa + &
+         &sqrt(kappa_a)*superH(kronecker(a,id_b),rho)*dWa
 
     if (heating .eqv. .true.) then
-       y = y + kappa_h*(n_h+1)*superD(kronecker(a,id_b),rho)*dt + kappa_h*n_h*superD(kronecker(adagger,id_b),rho)*dt 
+       !  y = y + kappa_h*(n_h+1)*superD(kronecker(a,id_b),rho)*dt + kappa_h*n_h*superD(kronecker(adagger,id_b),rho)*dt
+
+        y = y + kappa_h*n_h*superD(kronecker(a,id_b),rho)*dt + kappa_h*n_h*superD(kronecker(adagger,id_b),rho)*dt
     endif
 
     if (isnan(trace(y))) then
@@ -335,7 +345,7 @@ end function
     integer, intent(in) :: nruns
     real(dp), intent(in) :: dt
     complex(dp), intent(in) :: rhovec_zero(:),c(:,:),cdagger(:,:),H(:,:)
-    character(len=*), intent(in) :: filename
+   character(len=*), intent(in) :: filename
 
     complex(dp) :: rho(2,2), rhovec(4)
 

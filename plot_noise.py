@@ -7,17 +7,20 @@ from numpy import pi as pi
 from scipy.stats import norm
 from scipy.misc import factorial
 
-langevin = np.loadtxt('langevin.dat')
 
-plt.plot(langevin[:,0],langevin[:,1],'k',linewidth=2,label='a')
-plt.plot(langevin[:,0],langevin[:,2],'r',linewidth=2,label='b')
 
-plt.legend()
+traj = np.loadtxt('noise.dat')
 
-#plt.plot(trace[:,0],trace[:,1])
+#plt.plot(traj[:,0],traj[:,1],'b',linewidth=2)
 
-plt.xlabel(r'ns')
-#plt.ylabel(r'$\log(U_a/\omega_a)$')
+values, bins, _ = plt.hist(traj[:,1],50)
+
+mufit,stdfit = norm.fit(traj[:,1])
+
+print 'mean: ',mufit
+print 'std: ', stdfit
+
+
 
 plt.tight_layout()
 #plt.savefig('testplot',figsize=(20,10))

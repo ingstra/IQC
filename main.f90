@@ -10,11 +10,11 @@ program main
 
   implicit none
 
-  real(dp), parameter ::  dt = 5e-4
+  real(dp), parameter ::  dt = 1e-3
   real(dp) :: start, finish, const,omega_a,omega_b,T_a,T_b,g&
-       &,hbar_over_kb,n_c,kappa_b
+       &,n_c,kappa_b
   integer ::   nruns, ntrajs
-  integer, parameter :: dim_a = 5, dim_b=15
+  integer, parameter :: dim_a = 4, dim_b=8
  
   complex(dp), dimension(dim_a,dim_a) ::a,adagger,rhozero_a
 complex(dp), dimension(dim_b,dim_b) :: b,bdagger,rhozero_b
@@ -52,7 +52,7 @@ complex(dp), dimension(dim_b,dim_b) :: b,bdagger,rhozero_b
 
   call print_matrix_real(real(rhozero_a))
 
-  nruns = 14000
+  nruns = 20000
   ntrajs = 1
 
 

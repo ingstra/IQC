@@ -8,9 +8,14 @@ from scipy.stats import norm
 from scipy.misc import factorial
 
 langevin = np.loadtxt('langevin.dat')
+langevin_mod = np.loadtxt('langevin_mod.dat')
 
-plt.plot(langevin[:,0],langevin[:,1],'k',linewidth=2,label='a')
-plt.plot(langevin[:,0],langevin[:,2],'r',linewidth=2,label='b')
+plt.plot(langevin[:,0],langevin[:,1],'k',linewidth=2)
+plt.plot(langevin[:,0],langevin[:,2],'k',linewidth=2,label='Modulate $\kappa_h$')
+
+plt.plot(langevin_mod[:,0],langevin_mod[:,1],'--r',linewidth=2)
+plt.plot(langevin_mod[:,0],langevin_mod[:,2],'--r',linewidth=2,label='No modulation')
+
 
 plt.legend()
 
