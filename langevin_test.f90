@@ -56,12 +56,12 @@ program langevin
       Ya = 0
       Yb = 0
       
-      Xa(1) = sqrt(0.01)
-      Xb(1) = sqrt(0.01)
-      Ya(1) = sqrt(0.01)
-      Yb(1) = sqrt(0.01)
-      a_store(1) = 0.01*ntrajs
-      b_store(1) = 0.01*ntrajs
+      Xa(1) = 0!sqrt(0.01)
+      Xb(1) = 0!sqrt(0.01)
+      Ya(1) = 0!sqrt(0.01)
+      Yb(1) = 0!sqrt(0.01)
+      a_store(1) = 0!0.01*ntrajs
+      b_store(1) = 0!0.01*ntrajs
       
       do i=1,nruns-1
          ! toggle heating
@@ -90,22 +90,20 @@ program langevin
       
        
         ! evolve         
-       Xa(i+1) = Xa(i) + (( omega_a*Ya(i) - g*sqrt(2._dp)*Xb(i)*Ya(i) -&
-            &kappa_prime*Xa(i) )*dt + dW_hx  + dW_ax)!/sqrt(T)
+       Xa(i+1) = Xa(i) + (omega_a*Ya(i) - kappa_prime*Xa(i) )*dt + dW_hx  + dW_ax
 
        Xa_store(i+1) = Xa_store(i+1) + Xa(i+1)
        !
-       Ya(i+1) = Ya(i) - (( omega_a*Xa(i)- g*sqrt(2._dp)*Xa(i)*Xb(i)+ &
-            &kappa_prime*Ya(i) )*dt + dW_hy + dW_ay)!/sqrt(T)
+       Ya(i+1) = Ya(i) - ( omega_a*Xa(i)+ &
+            &kappa_prime*Ya(i) )*dt !+ dW_hy + dW_ay
 
        Ya_store(i+1) = Ya_store(i+1) + Ya(i+1)
        !
-       Xb(i+1) =  Xb(i) + (( omega_b*Yb(i)-kappa_b*Xb(i)/2._dp )*dt + dW_bx)!/sqrt(T)
+       Xb(i+1) =  Xb(i) + ( omega_b*Yb(i)-kappa_b*Xb(i)/2._dp )*dt !+ dW_bx
 
        Xb_store(i+1) = Xb_store(i+1) + Xb(i+1)
        !       
-       Yb(i+1) = Yb(i) - (( omega_b*Xb(i) + kappa_b*Yb(i)/2._dp - &
-            &g*(Xa(i)**2 + Ya(i)**2)/sqrt(2._dp) )*dt + dW_by)!/sqrt(T)
+       Yb(i+1) = Yb(i) - ( omega_b*Xb(i) + kappa_b*Yb(i)/2._dp )*dt !+ dW_by
 
        Yb_store(i+1) = Yb_store(i+1) + Yb(i+1)
 

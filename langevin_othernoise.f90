@@ -2,12 +2,12 @@ program langevin
 
    use module1, only: dp, pi, r8_normal_01
 
-   integer, parameter :: nruns = 200000, ntrajs=1
+   integer, parameter :: nruns = 200000, ntrajs=100
    real(dp), dimension(nruns) :: Xa, Ya, Xb, Yb, a_store, &
         &b_store, Xa_store, Xb_store, Ya_store, Yb_store
    real(dp) :: omega_a, omega_b, g, kappa_prime, kappa_a, kappa_b, &
         &kappa_h, dt, heating_time, dW_hx, dW_ax, dW_hy, dW_ay, dW_bx, dW_by, n_a, n_b, n_h, &
-        start, finish, omega_mod, omega_eff, Ua, Ta, Tb
+        start, finish, omega_mod, T,omega_eff, Ua, Ta, Tb
    integer :: i,j, nr_timesteps_heating, seed
    logical :: heating
    character(len=*), parameter :: carriage_return =  char(13)
@@ -26,10 +26,14 @@ program langevin
    n_h = 0.125
 
    dt=1e-4
- 
+   T= nruns*dt-1
+
    omega_mod = omega_b
    
-    heating_time = pi/omega_mod
+   Ta = 13.6736048505798
+   Tb =  0.683680242528990
+   
+   heating_time = pi/omega_mod
    nr_timesteps_heating = floor(heating_time/dt)
    if (mod(nr_timesteps_heating,10) .eq. 0) then
       nr_timesteps_heating = nr_timesteps_heating -1
@@ -146,7 +150,6 @@ program langevin
    open(unit=1, file='langevin.dat', action="write")
    open(unit=2, file='phase.dat', action="write")
    open(unit=3, file='cycle.dat', action="write")
-   open(unit=5, file='energy.dat',action='write')
     do i=1,nruns
        
     !   write(1,'(E22.7,A1,E22.7,A1,E22.7)') omega_a*i*dt, char(9), (Xa_store(i)**2 + Ya_store(i)**2)/2._dp,&
@@ -156,23 +159,13 @@ program langevin
 
        write(2,'(E22.7,A1,E22.7)') Xb_store(i), char(9), Yb_store(i)
 
-
-       omega_eff =   omega_a - g*sqrt(2._dp)*Xb_store(i)
-       Ua = omega_eff*a_store(i)
-
-       write(5,'(E22.7,A1,E22.7)') i*dt, char(9), Ua
-
     end do
-
-    close(5)
 
     do i=70,2*nr_timesteps_heating
        omega_eff =   omega_a - g*sqrt(2._dp)*Xb_store(nruns-2*nr_timesteps_heating+i)
        Ua = omega_eff*a_store(i)
        write(3,'(E22.7,A1,E22.7)') omega_eff/omega_a, char(9), Ua/omega_a
-    end do
-
-    
+      end do
       
     close(1)
    ! close(2)
